@@ -1,0 +1,87 @@
+cd /home/igarashi_25/playground_2/discrimination
+
+CUDA_VISIBLE_DEVICES=3 uv run python src/baseline_train_mmseg.py \
+  --model deeplabv3plus \
+  --backbone convnextv2_huge \
+  --result_dir /home/igarashi_25/playground_2/discrimination/result/deeplabv3plus_convnextv2_huge \
+  --num_classes 20 \
+  --epochs 150 \
+  --batch_size 4 \
+  --lr 3e-5 \
+  --eta_min 1e-6 \
+  --image_size 128 256 \
+  --eval_interval 25 \
+  --amp \
+  --amp_dtype bf16 \
+  --wandb \
+  --wandb_run_name deeplabv3plus_convnextv2_huge
+
+
+
+cd /home/igarashi_25/playground_2/discrimination
+
+CUDA_VISIBLE_DEVICES=3 uv run python src/baseline_train_mmseg.py \
+  --model pspnet \
+  --backbone convnextv2_huge \
+  --result_dir /home/igarashi_25/playground_2/discrimination/result/pspnet_convnextv2_huge \
+  --num_classes 20 \
+  --epochs 150 \
+  --batch_size 4 \
+  --lr 3e-5 \
+  --eta_min 1e-6 \
+  --image_size 128 256 \
+  --eval_interval 25 \
+  --amp \
+  --amp_dtype bf16 \
+  --wandb \
+  --wandb_run_name pspnet_convnextv2_huge
+
+
+cd /home/igarashi_25/playground_2/discrimination
+
+CUDA_VISIBLE_DEVICES=3 uv run python src/baseline_train_mmseg.py \
+  --model unet \
+  --backbone convnextv2_huge \
+  --result_dir /home/igarashi_25/playground_2/discrimination/result/unet_convnextv2_huge \
+  --num_classes 20 \
+  --epochs 150 \
+  --batch_size 4 \
+  --lr 3e-5 \
+  --eta_min 1e-6 \
+  --image_size 128 256 \
+  --eval_interval 25 \
+  --amp \
+  --amp_dtype bf16 \
+  --wandb \
+  --wandb_run_name unet_convnextv2_huge
+
+
+cd /home/igarashi_25/playground_2/discrimination
+
+CUDA_VISIBLE_DEVICES=3 uv run python src/baseline_train_mmseg.py \
+  --model upernet \
+  --backbone convnextv2_huge \
+  --result_dir /home/igarashi_25/playground_2/discrimination/result/upernet_convnextv2_huge \
+  --num_classes 20 \
+  --epochs 150 \
+  --batch_size 4 \
+  --lr 3e-5 \
+  --eta_min 1e-6 \
+  --image_size 128 256 \
+  --eval_interval 25 \
+  --amp \
+  --amp_dtype bf16 \
+  --wandb \
+  --wandb_run_name upernet_convnextv2_huge
+
+
+
+
+
+
+cp /home/igarashi_25/playground_2/CSDFM/sim-eu/src/segv9/main.py src/train.py
+cp /home/igarashi_25/playground_2/CSDFM/sim-eu/src/segv9/eval.py src/evaluate.py
+cp /home/igarashi_25/playground_2/CSDFM/sim-eu/src/segv9/eval_mu_prior.py src/evaluate_prior.py
+cp /home/igarashi_25/playground_2/CSDFM/sim-eu/src/segv9/model.py src/models.py
+cp /home/igarashi_25/playground_2/CSDFM/sim-eu/src/segv9/flowmatching.py src/flow_matching.py
+cp /home/igarashi_25/playground_2/CSDFM/sim-eu/src/segv9/dataset.py src/dataset.py
