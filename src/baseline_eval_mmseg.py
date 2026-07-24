@@ -9,7 +9,10 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from dataset import Cityscapes20ClassDataset
+from dataset import (
+    STOCHASTIC_DATASET_TRANSFORMS,
+    Cityscapes20ClassDataset,
+)
 from metrics import SegmentationMetrics
 from mmseg_model_factory import (
     SUPPORTED_BACKBONES,
@@ -145,7 +148,7 @@ def main() -> None:
     stochastic = [
         transform
         for transform in args.val_pipeline
-        if transform in ("flip", "colorjitter")
+        if transform in STOCHASTIC_DATASET_TRANSFORMS
     ]
     if stochastic:
         raise ValueError(

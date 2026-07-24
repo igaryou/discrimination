@@ -268,6 +268,31 @@ CUDA_VISIBLE_DEVICES=0 uv run python src/baseline_train_mmseg.py \
 
 オフライン記録にしたい場合は `--wandb_mode offline` を追加します。
 
+## SegFormer Cityscapes augmentation
+
+SegFormer公式設定を1/4解像度へ縮小した学習パイプラインは、次の順序で指定します。
+
+```text
+random_resize -> random_crop -> flip -> photometric_distortion
+-> to_tensor -> torchvision_normalise
+```
+
+- RandomResize: 基準 `[H, W] = [256, 512]`、倍率 `[0.5, 2.0]`
+- RandomCrop: `[H, W] = [256, 256]`、`cat_max_ratio=0.75`、最大10回試行
+- validation/test: `resize -> to_tensor -> torchvision_normalise` のみ
+- void/ignore index: `19`
+- Normalize: ImageNet mean/stdをデータセット内で1回だけ適用
+
+既存実験のデフォルトpipelineは変更せず、SegFormer用コマンドで明示的に有効化します。学習コマンド全体は `src/commandv2.txt` を参照してください。
+
+shape、mask ID、cat ratio、overlay、SegFormerのforward/backwardを確認するには次を実行します。
+
+```bash
+uv run python src/check_cityscapes_augmentation.py \
+  --cityscapes_root ~/datasets/cityscapes \
+  --output_dir result/augmentation_check
+```
+
 ## DFM/CSFMとの比較時の注意点
 
 - DFM/CSFM側の `/home/igarashi_25/playground_2/DSDFM/dfm/src` は、このbaseline整理では変更しません。

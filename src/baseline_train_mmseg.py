@@ -32,6 +32,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_classes", type=int, default=20)
     parser.add_argument("--eval_num_classes", type=int, default=None)
     parser.add_argument("--image_size", type=int, nargs=2, default=[128, 256])
+    parser.add_argument("--train_base_size", type=int, nargs=2, default=[256, 512])
+    parser.add_argument("--train_crop_size", type=int, nargs=2, default=[256, 256])
+    parser.add_argument("--random_scale_min", type=float, default=0.5)
+    parser.add_argument("--random_scale_max", type=float, default=2.0)
+    parser.add_argument("--cat_max_ratio", type=float, default=0.75)
     parser.add_argument("--train_pipeline", nargs="+", default=["resize"])
     parser.add_argument("--val_pipeline", nargs="+", default=["resize"])
     parser.add_argument("--hflip_prob", type=float, default=0.5)
@@ -122,6 +127,10 @@ def make_loaders(args: argparse.Namespace) -> Tuple[DataLoader, DataLoader]:
         split="train",
         mode="fine",
         image_size=image_size,
+        train_base_size=tuple(args.train_base_size),
+        train_crop_size=tuple(args.train_crop_size),
+        random_scale_range=(args.random_scale_min, args.random_scale_max),
+        cat_max_ratio=args.cat_max_ratio,
         is_train=True,
         pipeline=args.train_pipeline,
         hflip_prob=args.hflip_prob,
