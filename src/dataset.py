@@ -20,6 +20,7 @@ SUPPORTED_DATASET_TRANSFORMS = (
     "photometric_distortion",
     "to_tensor",
     "torchvision_normalise",
+    "pad",
 )
 STOCHASTIC_DATASET_TRANSFORMS = (
     "flip",
@@ -175,6 +176,20 @@ class Cityscapes20ClassDataset(Dataset):
             raise ValueError(
                 "colorjitter and photometric_distortion must not be used together"
             )
+        if "pad" in self.pipeline:
+            if not self.is_train:
+                raise ValueError("pad is a training-only dataset transform")
+            if self.pipeline[-1] != "pad":
+                raise ValueError("pad must be the final dataset transform")
+            if (
+                "torchvision_normalise" not in self.pipeline
+                or self.pipeline.index("torchvision_normalise")
+                > self.pipeline.index("pad")
+            ):
+                raise ValueError(
+                    "pad must run after torchvision_normalise so image padding "
+                    "is zero in normalized space"
+                )
         if not self.is_train:
             stochastic = [
                 transform
@@ -290,33 +305,24 @@ class Cityscapes20ClassDataset(Dataset):
     def _random_crop(self, image, mask):
         crop_height, crop_width = self.train_crop_size
         height, width = mask.shape[-2:]
-        pad_bottom = max(crop_height - height, 0)
-        pad_right = max(crop_width - width, 0)
-        if pad_bottom or pad_right:
-            padding = [0, 0, pad_right, pad_bottom]
-            image = TF.pad(image, padding, fill=0)
-            mask = F.pad(
-                mask,
-                (0, pad_right, 0, pad_bottom),
-                value=self.ignore_index,
-            )
-            height, width = mask.shape[-2:]
+        actual_crop_height = min(crop_height, height)
+        actual_crop_width = min(crop_width, width)
 
         cropped_image = None
         cropped_mask = None
         for _ in range(10):
-            top = int(torch.randint(height - crop_height + 1, ()).item())
-            left = int(torch.randint(width - crop_width + 1, ()).item())
+            top = int(torch.randint(height - actual_crop_height + 1, ()).item())
+            left = int(torch.randint(width - actual_crop_width + 1, ()).item())
             cropped_image = TF.crop(
                 image,
                 top,
                 left,
-                crop_height,
-                crop_width,
+                actual_crop_height,
+                actual_crop_width,
             )
             cropped_mask = mask[
-                top : top + crop_height,
-                left : left + crop_width,
+                top : top + actual_crop_height,
+                left : left + actual_crop_width,
             ]
             valid_mask = cropped_mask[cropped_mask != self.ignore_index]
             if valid_mask.numel() == 0:
@@ -328,6 +334,25 @@ class Cityscapes20ClassDataset(Dataset):
             ):
                 break
         return cropped_image, cropped_mask
+
+    def _pad_to_train_crop_size(self, image, mask):
+        if not isinstance(image, torch.Tensor):
+            raise TypeError("pad must run after to_tensor and normalise")
+        target_height, target_width = self.train_crop_size
+        image_height, image_width = image.shape[-2:]
+        mask_height, mask_width = mask.shape[-2:]
+        if (image_height, image_width) != (mask_height, mask_width):
+            raise ValueError(
+                "Image and mask sizes must match before padding, got "
+                f"{(image_height, image_width)} and {(mask_height, mask_width)}"
+            )
+        pad_bottom = max(target_height - image_height, 0)
+        pad_right = max(target_width - image_width, 0)
+        if pad_bottom or pad_right:
+            padding = (0, pad_right, 0, pad_bottom)
+            image = F.pad(image, padding, value=0.0)
+            mask = F.pad(mask, padding, value=self.ignore_index)
+        return image, mask
 
     def _photometric_distortion(self, image):
         if not isinstance(image, Image.Image):
@@ -402,6 +427,8 @@ class Cityscapes20ClassDataset(Dataset):
                 image = self._to_float_tensor(image)
             elif transform == "torchvision_normalise":
                 image = self.normalise(self._to_float_tensor(image))
+            elif transform == "pad":
+                image, mask = self._pad_to_train_crop_size(image, mask)
 
         if not isinstance(image, torch.Tensor):
             image = self._to_float_tensor(image)

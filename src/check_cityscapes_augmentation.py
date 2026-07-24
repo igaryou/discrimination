@@ -28,6 +28,7 @@ TRAIN_PIPELINE = (
     "photometric_distortion",
     "to_tensor",
     "torchvision_normalise",
+    "pad",
 )
 VAL_PIPELINE = ("resize", "to_tensor", "torchvision_normalise")
 
@@ -69,6 +70,22 @@ def make_datasets(root):
         pipeline=VAL_PIPELINE,
     )
     return train_dataset, val_dataset
+
+
+def make_forced_padding_dataset(root):
+    return Cityscapes20ClassDataset(
+        root=root,
+        split="train",
+        mode="fine",
+        image_size=(256, 512),
+        train_base_size=(256, 512),
+        train_crop_size=(256, 256),
+        random_scale_range=(0.5, 0.5),
+        cat_max_ratio=0.75,
+        is_train=True,
+        pipeline=TRAIN_PIPELINE,
+        hflip_prob=0.5,
+    )
 
 
 def class_ratio(mask):
@@ -159,6 +176,29 @@ def main():
         raise AssertionError(f"Unexpected val mask shape: {tuple(val_mask.shape)}")
     val_ids = validate_ids(val_mask)
 
+    forced_padding_dataset = make_forced_padding_dataset(root)
+    padded_image, _, padded_mask = forced_padding_dataset[0]
+    resized_height = round(256 * 0.5)
+    padded_image_region = padded_image[:, resized_height:, :]
+    padded_mask_region = padded_mask[resized_height:, :]
+    image_padding_is_zero = bool(
+        torch.allclose(
+            padded_image_region,
+            torch.zeros_like(padded_image_region),
+        )
+    )
+    mask_padding_is_ignore = bool(
+        torch.all(padded_mask_region == CITYSCAPES_IGNORE_INDEX)
+    )
+    if not image_padding_is_zero:
+        raise AssertionError(
+            "Post-normalize image padding was modified or is not exactly zero"
+        )
+    if not mask_padding_is_ignore:
+        raise AssertionError("Mask padding does not contain only ignore index 19")
+    padded_ids = validate_ids(padded_mask)
+    save_sample(padded_image, padded_mask, output_dir, args.num_samples)
+
     forward_result = {"skipped": True}
     if not args.skip_forward:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -201,6 +241,21 @@ def main():
         "val_image_shape": list(val_image.shape),
         "val_mask_shape": list(val_mask.shape),
         "val_observed_ids": val_ids,
+        "forced_padding_check": {
+            "scale": 0.5,
+            "pre_padding_shape": [3, resized_height, 256],
+            "final_image_shape": list(padded_image.shape),
+            "final_mask_shape": list(padded_mask.shape),
+            "padding": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 256 - resized_height,
+            },
+            "image_padding_is_exact_zero": image_padding_is_zero,
+            "mask_padding_is_ignore_19": mask_padding_is_ignore,
+            "observed_ids": padded_ids,
+        },
         "samples": samples,
         "forward": forward_result,
     }

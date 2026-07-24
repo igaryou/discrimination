@@ -19,7 +19,7 @@ uv run python src/baseline_train_mmseg.py \
   --batch_size 4 \
   --num_workers 4 \
   --eval_interval 200 \
-  --train_pipeline random_resize random_crop flip photometric_distortion to_tensor torchvision_normalise \
+  --train_pipeline random_resize random_crop flip photometric_distortion to_tensor torchvision_normalise pad \
   --val_pipeline resize to_tensor torchvision_normalise \
   --hflip_prob 0.5 \
   --amp \

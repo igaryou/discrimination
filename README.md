@@ -274,11 +274,12 @@ SegFormer公式設定を1/4解像度へ縮小した学習パイプラインは�
 
 ```text
 random_resize -> random_crop -> flip -> photometric_distortion
--> to_tensor -> torchvision_normalise
+-> to_tensor -> torchvision_normalise -> pad
 ```
 
 - RandomResize: 基準 `[H, W] = [256, 512]`、倍率 `[0.5, 2.0]`
 - RandomCrop: `[H, W] = [256, 256]`、`cat_max_ratio=0.75`、最大10回試行
+- Pad: Normalize後に右端・下端のみ。画像は`0.0`、maskはignore index `19`
 - validation/test: `resize -> to_tensor -> torchvision_normalise` のみ
 - void/ignore index: `19`
 - Normalize: ImageNet mean/stdをデータセット内で1回だけ適用
