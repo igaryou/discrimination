@@ -22,7 +22,7 @@ SUPPORTED_MODELS = ("deeplabv3plus", "pspnet", "unet", "upernet", "segformer")
 RESNET_BACKBONES = ("resnet18", "resnet34", "resnet50", "resnet101")
 CONVNEXT_BACKBONES = ("convnext_base", "convnext_large")
 TIMM_CONVNEXTV2_BACKBONES = ("convnextv2_huge",)
-SWIN_BACKBONES = ("swin_base", "swin_large")
+SWIN_BACKBONES = ("swin_small", "swin_base", "swin_large")
 SEGFORMER_BACKBONES = ("mit_b0", "mit_b1", "mit_b2", "mit_b3", "mit_b4", "mit_b5")
 SUPPORTED_BACKBONES = (
     RESNET_BACKBONES
@@ -367,9 +367,13 @@ def _backbone_channels(backbone: str) -> Tuple[int, int, int, int]:
             return (128, 256, 512, 1024)
         return (192, 384, 768, 1536)
     if _is_swin(backbone):
+        if backbone == "swin_small":
+            return (96, 192, 384, 768)
         if backbone == "swin_base":
             return (128, 256, 512, 1024)
-        return (192, 384, 768, 1536)
+        if backbone == "swin_large":
+            return (192, 384, 768, 1536)
+        raise ValueError(f"Unsupported Swin backbone: {backbone}")
 
     depth = _backbone_depth(backbone)
     if depth in (18, 34):
@@ -485,15 +489,22 @@ def _timm_convnextv2_backbone_cfg(backbone: str, pretrained: bool) -> Dict[str, 
 
 
 def _swin_pretrained_url(backbone: str) -> str:
+    if backbone == "swin_small":
+        return (
+            "https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/"
+            "swin/swin_small_patch4_window7_224_20220317-7ba6d6dd.pth"
+        )
     if backbone == "swin_base":
         return (
             "https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/"
             "swin/swin_base_patch4_window7_224_20220317-e9b98025.pth"
         )
-    return (
-        "https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/"
-        "swin/swin_large_patch4_window7_224_22k_20220412-aeecf2aa.pth"
-    )
+    if backbone == "swin_large":
+        return (
+            "https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/"
+            "swin/swin_large_patch4_window7_224_22k_20220412-aeecf2aa.pth"
+        )
+    raise ValueError(f"Unsupported Swin backbone: {backbone}")
 
 
 def _swin_backbone_cfg(backbone: str, pretrained: bool) -> Dict[str, Any]:
@@ -505,12 +516,17 @@ def _swin_backbone_cfg(backbone: str, pretrained: bool) -> Dict[str, Any]:
         )
         importlib.import_module("mmseg.models.backbones.swin")
 
-    if backbone == "swin_base":
+    if backbone == "swin_small":
+        embed_dims = 96
+        num_heads = (3, 6, 12, 24)
+    elif backbone == "swin_base":
         embed_dims = 128
         num_heads = (4, 8, 16, 32)
-    else:
+    elif backbone == "swin_large":
         embed_dims = 192
         num_heads = (6, 12, 24, 48)
+    else:
+        raise ValueError(f"Unsupported Swin backbone: {backbone}")
 
     cfg: Dict[str, Any] = dict(
         type="SwinTransformer",

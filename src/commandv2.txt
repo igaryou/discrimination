@@ -27,3 +27,49 @@ uv run python src/baseline_train_mmseg.py \
   --wandb \
   --wandb_project cityscapes20-segformer \
   --wandb_run_name segformer_mit_b5_aug_256x512_800ep
+
+
+
+cd /home/igarashi_25/playground_2/discrimination
+
+CUDA_VISIBLE_DEVICES=3 \
+uv run python src/baseline_train_mmseg.py \
+  --cityscapes_root /home/igarashi_25/datasets/cityscapes \
+  --model segformer \
+  --backbone mit_b5 \
+  --pretrained \
+  --result_dir /home/igarashi_25/playground_2/discrimination/result/segformer_mit_b5_aug_256x512_800ep \
+  --num_classes 20 \
+  --eval_num_classes 19 \
+  --image_size 256 512 \
+  --train_base_size 256 512 \
+  --train_crop_size 256 256 \
+  --random_scale_min 0.5 \
+  --random_scale_max 2.0 \
+  --cat_max_ratio 0.75 \
+  --epochs 800 \
+  --batch_size 4 \
+  --num_workers 4 \
+  --lr 5e-5 \
+  --weight_decay 1e-4 \
+  --eta_min 5e-7 \
+  --warmup_epochs 10 \
+  --eval_interval 50 \
+  --train_pipeline \
+    random_resize \
+    random_crop \
+    flip \
+    photometric_distortion \
+    to_tensor \
+    torchvision_normalise \
+    pad \
+  --val_pipeline \
+    resize \
+    to_tensor \
+    torchvision_normalise \
+  --hflip_prob 0.5 \
+  --amp \
+  --amp_dtype bf16 \
+  --wandb \
+  --wandb_project cityscapes20-segformer \
+  --wandb_run_name segformer_mit_b5_aug_256x512_800ep
