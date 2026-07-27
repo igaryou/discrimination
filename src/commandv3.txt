@@ -1,0 +1,19 @@
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=3 \
+bash src/commands/train_upernet_swin_small_256x512_800ep.sh
+
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=3 \
+bash src/commands/train_pspnet_resnet101_256x512_800ep.sh
+
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=3 \
+bash src/commands/train_deeplabv3plus_resnet101_256x512_800ep.sh
+
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=3 \
+bash src/commands/train_unet_swin_small_256x512_800ep.sh

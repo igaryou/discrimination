@@ -2,14 +2,14 @@
 
 このディレクトリは、DFM/CSFM系モデルとの比較用に、Cityscapes 20クラスセグメンテーションの識別モデルbaselineを学習・評価するためのものです。
 
-対象モデルは MMSegmentation 1.2.2 + mmcv-lite 上で構成した DeepLabV3+, PSPNet, U-Net-style model, UPerNet です。backboneはResNet系に加えて、UPerNet用にConvNeXt Base/LargeとSwin Transformer Small/Base/Largeを選択できます。MMSegmentation の Runner や Dataset pipeline には移行せず、既存の自作training loopから `image` と `mask` のみを使って学習します。
+対象モデルは MMSegmentation 1.2.2 + mmcv-lite 上で構成した DeepLabV3+, PSPNet, U-Net-style model, UPerNet です。backboneはResNet系に加えて、UPerNetではConvNeXt Base/LargeとSwin Transformer Small/Base/Large、U-Net-style modelではSwin Transformer Small/Base/Largeを選択できます。MMSegmentation の Runner や Dataset pipeline には移行せず、既存の自作training loopから `image` と `mask` のみを使って学習します。
 
 ## 目的
 
 - Cityscapes 20クラス設定で、DFM/CSFMとの比較対象になる識別モデルbaselineを再現可能にする。
 - 4種類のMMSegmentationモデルを、同じ `Cityscapes20ClassDataset`、同じ入力解像度、同じoptimizer/scheduler/eval設定で比較する。
 - mmcv-lite環境で動かすため、SyncBN、DeformConv、DCN、custom CUDA ops は使わない。
-- ResNet50 baselineを基準にしつつ、モデル規模をDFM/CSFMに近づける候補としてUPerNet + ConvNeXt/Swinも同じ自作training loopで動かせるようにする。
+- ResNet50 baselineを基準にしつつ、モデル規模をDFM/CSFMに近づける候補としてUPerNet + ConvNeXt/SwinとU-Net-style model + Swinも同じ自作training loopで動かせるようにする。
 
 ## ファイル構成
 
@@ -19,7 +19,7 @@
 | `src/check_model_backbones.py` | 指定したmodel/backboneについて、pretrained key照合、raw/resized logits、forward/backward、勾配、finite、stage shape、CUDAメモリを確認する詳細テスト。 |
 | `src/baseline_train_mmseg.py` | 自作training loop。Cityscapes train/valを読み込み、学習、val評価、checkpoint保存、loss curve保存、wandb loggingを行う。 |
 | `src/baseline_eval_mmseg.py` | 学習済みcheckpointを読み込み、指定splitで評価し、metricsと可視化画像を保存する。 |
-| `src/mmseg_model_factory.py` | mmcv-liteで必要なMMSegmentationモジュールだけを登録し、DeepLabV3+、PSPNet、U-Net-style model、UPerNetを構築する。ResNetはBN、ConvNeXt/SwinはUPerNet優先でLN系normを使用する。 |
+| `src/mmseg_model_factory.py` | mmcv-liteで必要なMMSegmentationモジュールだけを登録し、DeepLabV3+、PSPNet、U-Net-style model、UPerNetを構築する。ResNetはBN、ConvNeXt/SwinはLN系normを使用する。SwinはUPerNetとU-Net-style modelに対応する。 |
 | `src/dataset.py` | `Cityscapes20ClassDataset`。返り値は `(image, onehot, mask)`。識別モデルでは `onehot` は使わず、`image` と `mask` のみを使う。 |
 | `src/metrics.py` | confusion matrix、pixel accuracy、mIoU、mAcc、class別IoU/Accを計算する。 |
 | `src/visualization.py` | 入力画像、GT mask、予測mask、loss curveをPNGとして保存する。 |
@@ -29,7 +29,7 @@
 - 学習・評価コードは `for images, _, masks in loader` の形で `onehot` を無視しており、識別モデル側の入力は `image` と `mask` のみです。
 - `Cityscapes20ClassDataset` の返り値 `(image, onehot, mask)` は維持されています。
 - `norm_cfg` はResNetでは通常BN、ConvNeXt/SwinではLN系です。SyncBN、DeformConv、DCN、custom CUDA ops は使っていません。
-- ConvNeXt/Swinは `--model upernet` のみ対応です。
+- Swinは `--model upernet` と `--model unet` に対応します。DeepLabV3+とPSPNetでは未対応です。
 - MMSegmentationの Runner/Dataset pipeline は使っていません。
 - `baseline_eval_mmseg.py` は、`--checkpoint` 未指定の場合に `result_dir/model.pth`、つまりbest mIoU checkpointを読みます。最終epochを評価したい場合は `--checkpoint result_dir/model_final.pth` を明示してください。
 - 現状ではseed固定引数はありません。厳密な再現性が必要な比較では、今後seed制御を追加する余地があります。
@@ -75,9 +75,9 @@ uv pip install numpy pillow matplotlib tqdm wandb
 | `resnet18`, `resnet34`, `resnet50`, `resnet101` | 4モデル共通baseline | ResNet18/34: `[64, 128, 256, 512]`、ResNet50/101: `[256, 512, 1024, 2048]` |
 | `convnext_base`, `convnext_large` | UPerNet large baseline候補 | Base: `[128, 256, 512, 1024]`、Large: `[192, 384, 768, 1536]` |
 | `convnextv2_huge` | UPerNet large baseline候補 | `[352, 704, 1408, 2816]` |
-| `swin_small`, `swin_base`, `swin_large` | UPerNet baseline候補 | Small: `[96, 192, 384, 768]`、Base: `[128, 256, 512, 1024]`、Large: `[192, 384, 768, 1536]` |
+| `swin_small`, `swin_base`, `swin_large` | UPerNet / U-Net-style baseline候補 | Small: `[96, 192, 384, 768]`、Base: `[128, 256, 512, 1024]`、Large: `[192, 384, 768, 1536]` |
 
-## 比較対象の4構成
+## 比較対象の構成
 
 以下は比較対象として選択した標準的な高性能backbone構成です。全構成で `auxiliary_head=None`、Cross Entropy loss、`align_corners=False` を使用します。
 
@@ -89,6 +89,34 @@ uv pip install numpy pillow matplotlib tqdm wandb
 | `--model unet --backbone resnet101` | ResNet-101、通常の1/4・1/8・1/16・1/32出力、stage channels `[256, 512, 1024, 2048]` | 独自 `ResNetUNetHead`、`in_index=[0,1,2,3]`、`channels=256`、BN |
 
 CLI名は `unet` ですが、4段階のResNet-101 encoder featureを独自 `ResNetUNetHead` でtop-down fusionするU-Net-style decoder構成です。標準U-Netそのものではありません。
+
+### U-Net-style decoder + Swin-Small
+
+`--model unet --backbone swin_small` は、Swin-Smallの4段階featureを既存の
+`ResNetUNetHead`でtop-down fusionする構成です。registry名は既存checkpointと
+configの互換性のため維持していますが、head実装は`in_channels`と`norm_cfg`を
+受け取るbackbone非依存の実装です。Swin専用decoderや標準的な対称U-Netでは
+ありません。
+
+```text
+stage channels: [96, 192, 384, 768]
+decode head in_index: [0, 1, 2, 3]
+decode head channels: 512
+decode head norm: LN2d (eps=1e-6)
+num_classes: 20
+align_corners: False
+```
+
+256×512入力での実測shape:
+
+```text
+stage 0: [1, 96, 64, 128]
+stage 1: [1, 192, 32, 64]
+stage 2: [1, 384, 16, 32]
+stage 3: [1, 768, 8, 16]
+raw logits: [1, 20, 64, 128]
+resized logits: [1, 20, 256, 512]
+```
 
 ### Swin-Small architectureと事前学習重み
 
@@ -121,11 +149,12 @@ https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/swin/swin_small_patc
 
 ## パラメータ数
 
-今回の4構成の実測値です。全parameterが学習可能です。差は `model - 84,608,724`、差分率は指定どおり絶対差を用いています。
+今回の比較構成の実測値です。全parameterが学習可能です。差は `model - 84,608,724`、差分率は指定どおり絶対差を用いています。
 
 | モデル | total | trainable | SegFormer + MiT-B5との差 | 差分率 |
 | --- | ---: | ---: | ---: | ---: |
 | UPerNet + Swin-Small | 80,269,278 | 80,269,278 | -4,339,446 | 5.13% |
+| U-Net-style decoder + Swin-Small | 70,830,046 | 70,830,046 | -13,778,678 | 16.29% |
 | PSPNet + ResNet-101 | 65,584,212 | 65,584,212 | -19,024,512 | 22.49% |
 | DeepLabV3+ + ResNet-101 | 60,198,596 | 60,198,596 | -24,410,128 | 28.85% |
 | U-Net-style decoder + ResNet-101 | 48,801,876 | 48,801,876 | -35,806,848 | 42.32% |
@@ -162,6 +191,38 @@ CUDA_VISIBLE_DEVICES=0 uv run python src/check_model_backbones.py \
   --width 512 \
   --pretrained
 ```
+
+U-Net-style decoder + Swin-Smallのpretrained coverage、stage shape、raw/resized
+logits、backbone/headのgradientをGPU 3で確認するコマンド:
+
+```bash
+CUDA_VISIBLE_DEVICES=3 uv run python src/check_model_backbones.py \
+  --model unet \
+  --backbone swin_small \
+  --num_classes 20 \
+  --height 256 \
+  --width 512 \
+  --pretrained \
+  --amp_dtype bf16
+```
+
+optimizer stepまで確認するコマンド:
+
+```bash
+CUDA_VISIBLE_DEVICES=3 uv run python src/sanity_check_mmseg.py \
+  --model unet \
+  --backbone swin_small \
+  --pretrained \
+  --num_classes 20 \
+  --image_size 256 512 \
+  --batch_size 1 \
+  --amp \
+  --amp_dtype bf16
+```
+
+実測では公式Swin-Small checkpointのbackbone tensor coverageは99.99%で、
+`patch_embed.projection.weight`のtensor値一致、256×512でのforward/backward、
+backboneとdecode headのgradient、optimizer step、finite checkに合格しました。
 
 `--model` と `--backbone` をそれぞれ `pspnet/resnet101`、`deeplabv3plus/resnet101`、`unet/resnet101` に変更して同じ検証ができます。軽量な回帰確認だけを行う場合は `--forward_only`、autocastを無効化する場合は `--no_amp` を指定します。
 
@@ -258,13 +319,14 @@ CUDA_VISIBLE_DEVICES=0 uv run python src/baseline_train_mmseg.py \
 
 ## 256×512・800 epoch比較学習
 
-4構成の実行スクリプト:
+5構成の実行スクリプト:
 
 ```text
 src/commands/train_upernet_swin_small_256x512_800ep.sh
 src/commands/train_pspnet_resnet101_256x512_800ep.sh
 src/commands/train_deeplabv3plus_resnet101_256x512_800ep.sh
 src/commands/train_unet_resnet101_256x512_800ep.sh
+src/commands/train_unet_swin_small_256x512_800ep.sh
 ```
 
 いずれも学習pipelineは `flip -> resize -> colorjitter -> torchvision_normalise`、評価pipelineは `resize -> torchvision_normalise` です。共通条件は20出力クラス、19評価クラス、800 epochs、batch size 4、AdamW、`lr=5e-5`、`weight_decay=1e-4`、10 epoch warmup、cosine scheduler、`eta_min=5e-7`、200 epochごとの評価、bf16 AMPです。
@@ -276,6 +338,7 @@ GPU_ID=0 bash src/commands/train_upernet_swin_small_256x512_800ep.sh
 GPU_ID=0 bash src/commands/train_pspnet_resnet101_256x512_800ep.sh
 GPU_ID=0 bash src/commands/train_deeplabv3plus_resnet101_256x512_800ep.sh
 GPU_ID=0 bash src/commands/train_unet_resnet101_256x512_800ep.sh
+GPU_ID=3 bash src/commands/train_unet_swin_small_256x512_800ep.sh
 ```
 
 ## 評価

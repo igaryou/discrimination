@@ -73,3 +73,24 @@ uv run python src/baseline_train_mmseg.py \
   --wandb \
   --wandb_project cityscapes20-segformer \
   --wandb_run_name segformer_mit_b5_aug_256x512_800ep
+
+
+
+
+
+
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=3 \
+bash src/commands/train_upernet_swin_small_256x512_800ep.sh
+
+
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=0 \
+bash src/commands/train_pspnet_resnet101_256x512_800ep.sh
+
+cd /home/igarashi_25/playground_2/discrimination
+
+GPU_ID=1 \
+bash src/commands/train_deeplabv3plus_resnet101_256x512_800ep.sh

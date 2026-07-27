@@ -192,6 +192,18 @@ def _register_timm_convnextv2_backbone() -> None:
     )
 
 
+def _register_swin_backbone() -> None:
+    if MODELS.get("SwinTransformer") is not None:
+        return
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Fail to import ``MultiScaleDeformableAttention``.*",
+            category=UserWarning,
+        )
+        importlib.import_module("mmseg.models.backbones.swin")
+
+
 def _register_minimal_mmseg_modules() -> None:
     """Register only modules needed here, avoiding mmcv.ops-only imports."""
     global _MMSEG_REGISTERED
@@ -255,6 +267,13 @@ def _register_resnet_unet_head() -> None:
     from mmseg.models.utils import resize
 
     class ResNetUNetHead(BaseDecodeHead):
+        """Top-down fusion head for four-stage multi-scale backbones.
+
+        The registry name is retained for checkpoint/config compatibility, but
+        the implementation is backbone-independent and supports ResNet and Swin
+        feature pyramids through ``in_channels`` and ``norm_cfg``.
+        """
+
         def __init__(self, **kwargs: Any) -> None:
             super().__init__(input_transform="multiple_select", **kwargs)
             self.lateral_convs = nn.ModuleList(
@@ -346,9 +365,10 @@ def validate_model_backbone(model: str, backbone: str) -> Tuple[str, str]:
         raise ValueError(
             f"--backbone {backbone} is supported only with --model segformer"
         )
-    if _is_swin(backbone) and model != "upernet":
+    if _is_swin(backbone) and model not in ("upernet", "unet"):
         raise ValueError(
-            f"{backbone} is currently supported only with --model upernet"
+            f"{backbone} is currently supported only with "
+            "--model upernet or --model unet"
         )
     return model, backbone
 
@@ -508,14 +528,6 @@ def _swin_pretrained_url(backbone: str) -> str:
 
 
 def _swin_backbone_cfg(backbone: str, pretrained: bool) -> Dict[str, Any]:
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="Fail to import ``MultiScaleDeformableAttention``.*",
-            category=UserWarning,
-        )
-        importlib.import_module("mmseg.models.backbones.swin")
-
     if backbone == "swin_small":
         embed_dims = 96
         num_heads = (3, 6, 12, 24)
@@ -688,6 +700,8 @@ def build_mmseg_model(
         )
 
     _register_minimal_mmseg_modules()
+    if _is_swin(backbone):
+        _register_swin_backbone()
     model_cfg = build_model_cfg(
         model=model,
         backbone=backbone,
